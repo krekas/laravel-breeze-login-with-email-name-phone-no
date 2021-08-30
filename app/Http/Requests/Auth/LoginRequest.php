@@ -2,12 +2,14 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Hash;
 
 class LoginRequest extends FormRequest
 {
@@ -45,21 +47,36 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (filter_var($this->login, FILTER_VALIDATE_EMAIL)) {
+        /*if (filter_var($this->login, FILTER_VALIDATE_EMAIL)) {
             $login_type = 'email';
         } elseif (filter_var($this->login, FILTER_VALIDATE_INT)) {
             $login_type = 'phone_no';
-        } else {            
+        } else {
             $login_type = 'name';
         }
 
         $this->request->add([$login_type => $this->login]);
 
-        if (! Auth::attempt($this->only($login_type, 'password'), $this->boolean('remember'))) {
+        if (! Auth::attempt($this->only('name', 'password'), $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
-                $this->login => __('auth.failed'),
+                'login' => __('auth.failed'),
+            ]);
+        }*/
+
+        $user = User::where('email', $this->login)
+            ->orWhere('name', $this->login)
+            ->orWhere('phone_no', $this->login)
+            ->first();
+
+        if ($user && Hash::check($this->password, $user->password)) {
+            Auth::login($user, $this->boolean('remember'));
+        } else {
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'login' => __('auth.failed'),
             ]);
         }
 
